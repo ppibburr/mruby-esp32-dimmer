@@ -12,6 +12,22 @@ module ESP32
       end
       a
     end
+    
+    def disable
+      loads.each do |l|
+        set_load_power(l, OFF)
+      end
+      
+      reset
+    end
+    
+    def high! ld
+      set_load_power ld, ON
+    end
+    
+    def low! ld
+      set_load_power ld, OFF
+    end
   end
 end
 

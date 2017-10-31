@@ -79,14 +79,14 @@ load_t* dimmer_get_load_for_pin(dimmer_t* dimmer, int pin) {
 
 void dimmer_set_channel_low(dimmer_t* dimmer, int l) {
     int pin = dimmer_get_load_pin(dimmer, l);
-	// digitalWrite(pin, 0);
-
+	gpio_set_level(pin, 0);
+	
     // printf("Pin LOW: %d\n", pin);
 }
 
 void dimmer_set_channel_high(dimmer_t* dimmer, int l) {
     int pin = dimmer_get_load_pin(dimmer, l);
-	// digitalWrite(pin, 1);
+	gpio_set_level(pin, 1);
     
     // printf("Pin HIGH: %d\n", pin);	
 }
@@ -110,8 +110,8 @@ void dimmer_update(dimmer_t* dimmer) {
 	}
   }
   
-  for(int i=0; i <= max_tick; i = i+10) {
-	  ets_delay_us(10);
+  for(int i=0; i <= max_tick; i = i+dimmer->gate_hold) {
+	  ets_delay_us(dimmer->gate_hold);
 	  
 	  // printf("tick %d\n", i);
 	  
@@ -131,8 +131,19 @@ void dimmer_update(dimmer_t* dimmer) {
   }
 }
 
-void dimmer_zx_isr_cb(void* data) {
+void IRAM_ATTR dimmer_zx_isr_cb(void* data) {
 	dimmer_update((dimmer_t*)data);	
+}
+
+void dimmer_config_load_pin(int pin) {
+  gpio_pad_select_gpio(pin);
+  gpio_set_direction(pin, GPIO_MODE_OUTPUT);	
+}
+
+void dimmer_config_zx_pin(int pin) {
+  gpio_pad_select_gpio(pin);
+  gpio_set_direction(pin, GPIO_MODE_INPUT);
+  gpio_set_pull_mode(pin, GPIO_PULLUP_ONLY);
 }
 
 void dimmer_init_dimmer(dimmer_t* dimmer, int zx_pin, int load_pins[], int n_loads, void* gate_hold) {
@@ -152,6 +163,13 @@ void dimmer_init_dimmer(dimmer_t* dimmer, int zx_pin, int load_pins[], int n_loa
 	}
 }
 
+void dimmer_enable(dimmer_t* dimmer) {
+	gpio_isr_handler_add(dimmer->zx, dimmer_zx_isr_cb,(void*)dimmer);   
+}
+
+void dimmer_trigger(dimmer_t* dimmer) {
+	dimmer_zx_isr_cb((void*)dimmer);
+}
 
 static mrb_value mrb_esp32_dimmer_init(mrb_state* mrb, mrb_value self) {
 	mrb_value args, dwell;
@@ -256,7 +274,29 @@ static mrb_value mrb_esp32_dimmer_reset(mrb_state* mrb, mrb_value self) {
     return self;
 }
 
+static mrb_value mrb_esp32_dimmer_enable(mrb_state* mrb, mrb_value self) {
+    dimmer_t* dimmer;
+    
+    mrb_value iv = mrb_iv_get(mrb, self, mrb_intern_lit(mrb, "@data"));
+    
+    mrb_esp32_dimmer_get_data(mrb,iv,NULL, &dimmer);
+    
+    dimmer_enable(dimmer);
+    
+    return self;	
+}
 
+static mrb_value mrb_esp32_dimmer_trigger(mrb_state* mrb, mrb_value self) {
+    dimmer_t* dimmer;
+    
+    mrb_value iv = mrb_iv_get(mrb, self, mrb_intern_lit(mrb, "@data"));
+    
+    mrb_esp32_dimmer_get_data(mrb,iv,NULL, &dimmer);
+    
+    dimmer_trigger(dimmer);
+    
+    return self;	
+}
 
 void
 mrb_mruby_esp32_dimmer_gem_init(mrb_state* mrb)
@@ -276,6 +316,8 @@ mrb_mruby_esp32_dimmer_gem_init(mrb_state* mrb)
   mrb_define_method(mrb, dimmer, "get_zx_pin", mrb_esp32_dimmer_get_zx_pin, MRB_ARGS_NONE()); 
   mrb_define_method(mrb, dimmer, "load_pin", mrb_esp32_dimmer_get_load_pin, MRB_ARGS_REQ(1));   
   mrb_define_method(mrb, dimmer, "zx_pin", mrb_esp32_dimmer_get_zx_pin, MRB_ARGS_NONE());         
+  mrb_define_method(mrb, dimmer, "enable", mrb_esp32_dimmer_enable, MRB_ARGS_NONE());     
+  mrb_define_method(mrb, dimmer, "trigger!", mrb_esp32_dimmer_trigger, MRB_ARGS_NONE());           
 }
 
 void

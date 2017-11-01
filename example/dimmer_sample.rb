@@ -1,4 +1,4 @@
-d=ESP32::Dimmer.new(18, (11..14).to_a, nil)
+d=ESP32::Dimmer.new(18, (12..19).to_a, nil)
 
 v = 0
 d.loads.each do |l|
@@ -12,4 +12,11 @@ d.loads do |l|
   puts "Load #{l}: Power #{d.load_power(l)}, Pin #{d.load_pin(l)}."
 end
 
-while true;end
+
+
+while true;
+  ESP32::System.delay 10
+  d.loads do |l|
+    d.latch l, 1 
+  end
+end

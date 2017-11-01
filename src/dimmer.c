@@ -152,6 +152,7 @@ void dimmer_init_dimmer(dimmer_t* dimmer, int zx_pin, int load_pins[], int n_loa
 	    load.pin   = load_pins[i];
 	    load.power = 0;
 		dimmer->loads[i] = load;
+		dimmer_config_load_pin(load.pin);
 	}
 	
 	dimmer->zx        = zx_pin;
@@ -262,6 +263,26 @@ static mrb_value mrb_esp32_dimmer_get_load_pin(mrb_state* mrb, mrb_value self) {
     return mrb_fixnum_value(dimmer->loads[(int)channel].pin);
 }
 
+static mrb_value mrb_esp32_dimmer_latch(mrb_state* mrb, mrb_value self) {
+	mrb_int channel, value;
+	
+	mrb_get_args(mrb,"ii",&channel, &value);
+    
+    dimmer_t* dimmer;
+    
+    mrb_value iv = mrb_iv_get(mrb, self, mrb_intern_lit(mrb, "@data"));
+    
+    mrb_esp32_dimmer_get_data(mrb,iv,NULL, &dimmer);
+    
+    if ((int)value == 1) {
+      dimmer_set_channel_high(dimmer, (int)channel);
+    } else {
+      dimmer_set_channel_low(dimmer, (int)channel);
+	}
+	
+    return self;
+}
+
 static mrb_value mrb_esp32_dimmer_reset(mrb_state* mrb, mrb_value self) {
     dimmer_t* dimmer;
     
@@ -314,7 +335,8 @@ mrb_mruby_esp32_dimmer_gem_init(mrb_state* mrb)
   mrb_define_method(mrb, dimmer, "n_loads", mrb_esp32_dimmer_get_n_loads, MRB_ARGS_NONE());   
   mrb_define_method(mrb, dimmer, "get_load_pin", mrb_esp32_dimmer_get_load_pin, MRB_ARGS_REQ(1));   
   mrb_define_method(mrb, dimmer, "get_zx_pin", mrb_esp32_dimmer_get_zx_pin, MRB_ARGS_NONE()); 
-  mrb_define_method(mrb, dimmer, "load_pin", mrb_esp32_dimmer_get_load_pin, MRB_ARGS_REQ(1));   
+  mrb_define_method(mrb, dimmer, "load_pin", mrb_esp32_dimmer_get_load_pin, MRB_ARGS_REQ(1));  
+  mrb_define_method(mrb, dimmer, "latch", mrb_esp32_dimmer_latch, MRB_ARGS_REQ(2));   
   mrb_define_method(mrb, dimmer, "zx_pin", mrb_esp32_dimmer_get_zx_pin, MRB_ARGS_NONE());         
   mrb_define_method(mrb, dimmer, "enable", mrb_esp32_dimmer_enable, MRB_ARGS_NONE());     
   mrb_define_method(mrb, dimmer, "trigger!", mrb_esp32_dimmer_trigger, MRB_ARGS_NONE());           

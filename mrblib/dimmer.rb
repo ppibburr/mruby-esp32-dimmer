@@ -22,11 +22,11 @@ module ESP32
     end
     
     def high! ld
-      set_load_power ld, ON
+      set_load_power ld, 1# ON
     end
     
     def low! ld
-      set_load_power ld, OFF
+      set_load_power ld, 0#OFF
     end
   end
 end
